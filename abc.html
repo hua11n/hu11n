@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>剪刀石頭布 - 一鍵自動對戰</title>
+    <!-- 引入 Tailwind CSS 獲取現代化美觀 UI -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- 引入 Font Awesome 取得精美圖示 -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&display=swap');
+        body {
+            font-family: 'Noto Sans TC', sans-serif;
+            background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 100%);
+        }
+        /* 震動與動畫效果 */
+        @keyframes shake {
+            0%, 100% { transform: translateY(0) rotate(0deg); }
+            25% { transform: translateY(-10px) rotate(-3deg); }
+            75% { transform: translateY(10px) rotate(3deg); }
+        }
+        .shaking {
+            animation: shake 0.15s ease-in-out infinite;
+        }
+        /* 贏家特效 */
+        @keyframes pulse-gold {
+            0%, 100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(234, 179, 8, 0.7); }
+            50% { transform: scale(1.05); box-shadow: 0 0 20px 10px rgba(234, 179, 8, 0.4); }
+        }
+        .winner-card {
+            animation: pulse-gold 2s infinite;
+            border-color: #eab308 !important;
+        }
+    </style>
+</head>
+<body class="min-h-screen text-slate-100 flex flex-col justify-between py-6 px-4">
+
+    <!-- 頂部標題與說明 -->
+    <header class="text-center max-w-2xl mx-auto w-full mt-4">
+        <h1 class="text-4xl md:text-5xl font-black tracking-wider bg-clip-text text-transparent bg-gradient-to-r from-pink-500 via-purple-500 to-indigo-400 mb-2">
+            Roshambo Auto!
+        </h1>
+        <p class="text-slate-400 text-sm md:text-base">極速自動對決！一鍵決定命運，無須手動出拳！</p>
+    </header>
+
+    <!-- 主遊戲區 -->
+    <main class="max-w-4xl mx-auto w-full my-6 bg-slate-900/60 backdrop-blur-md rounded-3xl p-6 md:p-8 border border-slate-800 shadow-2xl flex flex-col items-center">
+        
+        <!-- 計分板 -->
+        <div class="grid grid-cols-3 gap-4 w-full max-w-md mb-8 text-center bg-slate-950/80 p-4 rounded-2xl border border-slate-800">
+            <div>
+                <p class="text-xs text-blue-400 font-bold uppercase tracking-wider">玩家勝場</p>
+                <p id="player-score" class="text-3xl font-black text-blue-500 mt-1">0</p>
+            </div>
+            <div class="border-x border-slate-800 flex flex-col justify-center">
+                <p class="text-xs text-slate-400 font-bold uppercase tracking-wider">平手</p>
+                <p id="tie-score" class="text-2xl font-bold text-slate-300 mt-1">0</p>
+            </div>
+            <div>
+                <p class="text-xs text-red-400 font-bold uppercase tracking-wider">電腦勝場</p>
+                <p id="computer-score" class="text-3xl font-black text-red-500 mt-1">0</p>
+            </div>
+        </div>
+
+        <!-- 對戰區域 -->
+        <div class="flex flex-col md:flex-row items-center justify-center gap-6 md:gap-16 w-full mb-8">
+            
+            <!-- 玩家方 -->
+            <div id="player-card" class="w-full md:w-64 bg-slate-950/50 border-2 border-slate-800 rounded-2xl p-6 flex flex-col items-center transition-all duration-300">
+                <span class="text-xs font-bold px-3 py-1 bg-blue-500/20 text-blue-400 rounded-full mb-4">PLAYER 玩家</span>
+                <div id="player-hand-container" class="h-32 flex items-center justify-center">
+                    <!-- 預設顯示問號圖標 -->
+                    <i id="player-hand-icon" class="fa-solid fa-circle-question text-7xl text-blue-500 transition-all duration-300"></i>
+                </div>
+                <p id="player-hand-text" class="text-xl font-bold mt-4 text-slate-300">準備中...</p>
+            </div>
+
+            <!-- VS 中間區域 -->
+            <div class="flex flex-col items-center justify-center">
+                <div class="w-16 h-16 bg-gradient-to-tr from-pink-600 to-indigo-600 rounded-full flex items-center justify-center shadow-lg shadow-purple-500/30">
+                    <span class="text-xl font-black italic tracking-tighter text-white">VS</span>
+                </div>
+                <!-- 對局勝負大文字 -->
+                <div id="game-status-wrapper" class="mt-4 h-12 flex items-center">
+                    <span id="game-result-badge" class="hidden text-sm font-bold py-1.5 px-4 rounded-full"></span>
+                </div>
+            </div>
+
+            <!-- 電腦方 -->
+            <div id="computer-card" class="w-full md:w-64 bg-slate-950/50 border-2 border-slate-800 rounded-2xl p-6 flex flex-col items-center transition-all duration-300">
+                <span class="text-xs font-bold px-3 py-1 bg-red-500/20 text-red-400 rounded-full mb-4">COMPUTER 電腦</span>
+                <div id="computer-hand-container" class="h-32 flex items-center justify-center">
+                    <!-- 預設顯示問號圖標 -->
+                    <i id="computer-hand-icon" class="fa-solid fa-circle-question text-7xl text-red-500 transition-all duration-300"></i>
+                </div>
+                <p id="computer-hand-text" class="text-xl font-bold mt-4 text-slate-300">準備中...</p>
+            </div>
+
+        </div>
+
+        <!-- 一鍵自動對戰按鈕 -->
+        <button id="btn-fight" class="group relative w-full max-w-md bg-gradient-to-r from-pink-500 via-purple-600 to-indigo-500 hover:from-pink-600 hover:via-purple-700 hover:to-indigo-600 text-white font-extrabold text-xl py-4 px-8 rounded-2xl shadow-lg shadow-purple-500/20 hover:shadow-purple-500/40 transition-all duration-300 transform hover:-translate-y-1 active:translate-y-0 active:scale-95 focus:outline-none">
+            <span class="flex items-center justify-center gap-3">
+                <i class="fa-solid fa-bolt text-yellow-300 animate-pulse"></i>
+                <span>一鍵自動對戰 !</span>
+            </span>
+            <!-- 閃爍炫彩邊框 -->
+            <div class="absolute inset-0 rounded-2xl bg-white/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+        </button>
+
+        <!-- 輔助控制（清除紀錄、自動連戰） -->
+        <div class="flex gap-4 mt-6">
+            <button id="btn-auto-loop" class="text-xs font-semibold px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg transition-colors border border-slate-700/50 flex items-center gap-1.5">
+                <i class="fa-solid fa-play"></i> <span id="auto-loop-text">開啟自動連續對戰</span>
+            </button>
+            <button id="btn-reset" class="text-xs font-semibold px-4 py-2 bg-slate-800/50 hover:bg-red-900/30 text-slate-400 hover:text-red-300 rounded-lg transition-colors border border-slate-800 flex items-center gap-1.5">
+                <i class="fa-solid fa-rotate-left"></i> 重設計分板
+            </button>
+        </div>
+
+    </main>
+
+    <!-- 下方歷史紀錄區 -->
+    <section class="max-w-xl mx-auto w-full bg-slate-900/40 backdrop-blur-sm rounded-2xl p-4 border border-slate-800/80 mb-4">
+        <h3 class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3 flex items-center justify-between">
+            <span>對戰歷史紀錄 (最新 5 筆)</span>
+            <i class="fa-solid fa-history text-slate-500"></i>
+        </h3>
+        <div id="history-container" class="space-y-2 max-h-40 overflow-y-auto pr-1">
+            <p class="text-xs text-slate-500 text-center py-4">尚無對戰紀錄，趕快點擊按鈕對決吧！</p>
+        </div>
+    </section>
+
+    <!-- 頁尾 -->
+    <footer class="text-center text-xs text-slate-600 mb-2">
+        <p>© 2026 Roshambo Auto. 設計精緻、秒速對決。</p>
+    </footer>
+
+    <!-- 遊戲邏輯腳本 -->
+    <script>
+        // 定義拳法資料
+        const choices = [
+            { id: 'rock', name: '石頭', icon: 'fa-solid fa-hand-fist', color: 'text-indigo-400' },
+            { id: 'scissors', name: '剪刀', icon: 'fa-solid fa-hand-scissors', color: 'text-pink-400' },
+            { id: 'paper', name: '布', icon: 'fa-solid fa-hand', color: 'text-teal-400' }
+        ];
+
+        // 狀態管理
+        let scores = { player: 0, computer: 0, tie: 0 };
+        let history = [];
+        let isFighting = false;
+        let loopInterval = null;
+
+        // 綁定 DOM 元素
+        const btnFight = document.getElementById('btn-fight');
+        const btnReset = document.getElementById('btn-reset');
+        const btnAutoLoop = document.getElementById('btn-auto-loop');
+        const autoLoopText = document.getElementById('auto-loop-text');
+
+        const pScoreEl = document.getElementById('player-score');
+        const cScoreEl = document.getElementById('computer-score');
+        const tScoreEl = document.getElementById('tie-score');
+
+        const pCard = document.getElementById('player-card');
+        const cCard = document.getElementById('computer-card');
+
+        const pIcon = document.getElementById('player-hand-icon');
+        const cIcon = document.getElementById('computer-hand-icon');
+
+        const pText = document.getElementById('player-hand-text');
+        const cText = document.getElementById('computer-hand-text');
+
+        const resultBadge = document.getElementById('game-result-badge');
+        const historyContainer = document.getElementById('history-container');
+
+        // 主體邏輯：執行一次對決
+        function runBattle() {
+            if (isFighting) return;
+            isFighting = true;
+
+            // 停用按鈕交互，增添動畫臨場感
+            btnFight.disabled = true;
+            btnFight.classList.add('opacity-75', 'cursor-not-allowed');
+
+            // 移除舊有的贏家特效，加入震動與問號效果
+            pCard.classList.remove('winner-card', 'border-blue-500');
+            cCard.classList.remove('winner-card', 'border-red-500');
+            resultBadge.classList.add('hidden');
+
+            // 震動兩側卡片，模擬猜拳準備動作
+            pIcon.className = "fa-solid fa-hand-back-fist text-7xl text-slate-500 shaking";
+            cIcon.className = "fa-solid fa-hand-back-fist text-7xl text-slate-500 shaking";
+            pText.innerText = "出拳中...";
+            cText.innerText = "出拳中...";
+
+            // 模擬隨機變動（500 毫秒後揭曉）
+            setTimeout(() => {
+                // 亂數抽取對局結果
+                const pIndex = Math.floor(Math.random() * 3);
+                const cIndex = Math.floor(Math.random() * 3);
+
+                const playerChoice = choices[pIndex];
+                const computerChoice = choices[cIndex];
+
+                // 移除震動
+                pIcon.classList.remove('shaking');
+                cIcon.classList.remove('shaking');
+
+                // 顯示出拳圖示與文字
+                pIcon.className = `${playerChoice.icon} text-7xl ${playerChoice.color} transition-all scale-110`;
+                cIcon.className = `${computerChoice.icon} text-7xl ${computerChoice.color} transition-all scale-110`;
+
+                pText.innerText = playerChoice.name;
+                cText.innerText = computerChoice.name;
+
+                // 判定勝負
+                let result = ''; // 'player', 'computer', 'tie'
+                if (playerChoice.id === computerChoice.id) {
+                    result = 'tie';
+                } else if (
+                    (playerChoice.id === 'rock' && computerChoice.id === 'scissors') ||
+                    (playerChoice.id === 'scissors' && computerChoice.id === 'paper') ||
+                    (playerChoice.id === 'paper' && computerChoice.id === 'rock')
+                ) {
+                    result = 'player';
+                } else {
+                    result = 'computer';
+                }
+
+                // 統計與更新 UI
+                updateResultUI(result, playerChoice, computerChoice);
+
+                // 解除按鈕狀態
+                isFighting = false;
+                if (!loopInterval) {
+                    btnFight.disabled = false;
+                    btnFight.classList.remove('opacity-75', 'cursor-not-allowed');
+                }
+            }, 600);
+        }
+
+        // 更新勝負結果 UI
+        function updateResultUI(result, player, computer) {
+            resultBadge.classList.remove('hidden', 'bg-blue-600', 'bg-red-600', 'bg-slate-700');
+            
+            let statusText = '';
+            let battleTime = new Date().toLocaleTimeString();
+
+            if (result === 'player') {
+                scores.player++;
+                pScoreEl.innerText = scores.player;
+                statusText = "🎉 玩家獲勝！";
+                resultBadge.classList.add('bg-blue-600', 'text-white');
+                pCard.classList.add('winner-card');
+                pCard.classList.remove('border-slate-800');
+                pCard.classList.add('border-blue-500');
+            } else if (result === 'computer') {
+                scores.computer++;
+                cScoreEl.innerText = scores.computer;
+                statusText = "💀 電腦獲勝！";
+                resultBadge.classList.add('bg-red-600', 'text-white');
+                cCard.classList.add('winner-card');
+                cCard.classList.remove('border-slate-800');
+                cCard.classList.add('border-red-500');
+            } else {
+                scores.tie++;
+                tScoreEl.innerText = scores.tie;
+                statusText = "🤝 雙方平手";
+                resultBadge.classList.add('bg-slate-700', 'text-slate-200');
+            }
+
+            resultBadge.innerText = statusText;
+
+            // 寫入歷史紀錄
+            const historyItem = {
+                time: battleTime,
+                player: player.name,
+                computer: computer.name,
+                result: result,
+                text: statusText
+            };
+            history.unshift(historyItem); // 新增到最前頭
+            if (history.length > 5) history.pop(); // 只留 5 筆
+
+            renderHistory();
+        }
+
+        // 渲染歷史紀錄清單
+        function renderHistory() {
+            if (history.length === 0) {
+                historyContainer.innerHTML = `<p class="text-xs text-slate-500 text-center py-4">尚無對戰紀錄，趕快點擊按鈕對決吧！</p>`;
+                return;
+            }
+
+            historyContainer.innerHTML = history.map(item => {
+                let badgeClass = 'text-slate-400 bg-slate-950/40';
+                if (item.result === 'player') badgeClass = 'text-blue-400 bg-blue-950/30 border border-blue-500/20';
+                if (item.result === 'computer') badgeClass = 'text-red-400 bg-red-950/30 border border-red-500/20';
+
+                return `
+                    <div class="flex items-center justify-between p-2.5 rounded-lg text-xs ${badgeClass} transition-all">
+                        <span class="text-slate-500">${item.time}</span>
+                        <span class="font-medium">玩家 ➔ [${item.player}] <span class="mx-1 text-slate-600">vs</span> [${item.computer}] 💻</span>
+                        <span class="font-bold">${item.text}</span>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        // 重設計分板
+        btnReset.addEventListener('click', () => {
+            scores = { player: 0, computer: 0, tie: 0 };
+            history = [];
+            
+            pScoreEl.innerText = '0';
+            cScoreEl.innerText = '0';
+            tScoreEl.innerText = '0';
+
+            pCard.className = "w-full md:w-64 bg-slate-950/50 border-2 border-slate-800 rounded-2xl p-6 flex flex-col items-center transition-all duration-300";
+            cCard.className = "w-full md:w-64 bg-slate-950/50 border-2 border-slate-800 rounded-2xl p-6 flex flex-col items-center transition-all duration-300";
+
+            pIcon.className = "fa-solid fa-circle-question text-7xl text-blue-500 transition-all duration-300";
+            cIcon.className = "fa-solid fa-circle-question text-7xl text-red-500 transition-all duration-300";
+
+            pText.innerText = "準備中...";
+            cText.innerText = "準備中...";
+
+            resultBadge.classList.add('hidden');
+            
+            renderHistory();
+        });
+
+        // 綁定手動戰鬥按鈕
+        btnFight.addEventListener('click', runBattle);
+
+        // 自動連續對戰功能
+        btnAutoLoop.addEventListener('click', () => {
+            if (loopInterval) {
+                // 關閉自動對戰
+                clearInterval(loopInterval);
+                loopInterval = null;
+                btnAutoLoop.innerHTML = `<i class="fa-solid fa-play"></i> <span id="auto-loop-text">開啟自動連續對戰</span>`;
+                btnAutoLoop.classList.remove('bg-red-600/30', 'text-red-300', 'border-red-500/30');
+                btnAutoLoop.classList.add('bg-slate-800', 'text-slate-300', 'border-slate-700/50');
+                
+                // 恢復手動按鈕
+                btnFight.disabled = false;
+                btnFight.classList.remove('opacity-75', 'cursor-not-allowed');
+            } else {
+                // 開啟自動對戰
+                runBattle(); // 立即開始第一場
+                loopInterval = setInterval(() => {
+                    if (!isFighting) {
+                        runBattle();
+                    }
+                }, 1600); // 每 1.6 秒進行一場 (動畫耗時約 0.6 秒)
+
+                btnAutoLoop.innerHTML = `<i class="fa-solid fa-stop"></i> <span id="auto-loop-text">停止自動連續對戰</span>`;
+                btnAutoLoop.classList.remove('bg-slate-800', 'text-slate-300', 'border-slate-700/50');
+                btnAutoLoop.classList.add('bg-red-600/30', 'text-red-300', 'border-red-500/30');
+                
+                // 鎖定手動按鈕
+                btnFight.disabled = true;
+                btnFight.classList.add('opacity-75', 'cursor-not-allowed');
+            }
+        });
+    </script>
+</body>
+</html>
